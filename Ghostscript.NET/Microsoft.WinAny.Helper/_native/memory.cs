@@ -29,7 +29,7 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.WinAny
 {
-    internal static unsafe class memory
+    public static unsafe class memory
     {
         /// <summary>
         /// Copies bytes between buffers.
@@ -39,10 +39,12 @@ namespace Microsoft.WinAny
         /// <param name="size">Number of characters to copy.</param>
         public static void memcpy(byte* dest, byte* src, uint count)
         {
-            for (uint i = 0; i < count; i++)
+            Buffer.MemoryCopy(src, dest, count, count);
+
+            /*for (uint i = 0; i < count; i++)
             {
                 *(dest + i) = *(src + i);
-            }
+            }*/
         }
 
         /// <summary>
@@ -53,10 +55,15 @@ namespace Microsoft.WinAny
         /// <param name="count">Number of characters.</param>
         public static void memset(byte* dest, byte c, uint count)
         {
-            for (uint i = 0; i < count; i++)
+            while (count-- > 0)
+            {
+                *(dest + count) = c;
+            }
+            
+            /*for (uint i = 0; i < count; i++)
             {
                 *dest = c;
-            }
+            }*/
         }
 
         /// <summary>
