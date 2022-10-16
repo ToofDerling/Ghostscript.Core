@@ -118,7 +118,7 @@ namespace Ghostscript.NET
         /// Gets if machine value represents 64 bit machine.
         /// </summary>
         /// <param name="machine">IMAGE_FILE_HEADER->Machine value.</param>
-        private static bool Is64BitMachineValue(ushort machine)
+        public static bool Is64BitMachineValue(ushort machine)
         {
             switch(machine)
             {

@@ -29,7 +29,7 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.WinAny
 {
-    public static unsafe class WinBase
+    internal static unsafe class WinBase
     {
         [DllImport("kernel32.dll")]
         public static extern IntPtr LoadLibrary(string lpLibFileName);

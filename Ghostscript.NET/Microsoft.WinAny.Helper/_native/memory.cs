@@ -29,7 +29,7 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.WinAny
 {
-    public static unsafe class memory
+    internal static unsafe class memory
     {
         /// <summary>
         /// Copies bytes between buffers.

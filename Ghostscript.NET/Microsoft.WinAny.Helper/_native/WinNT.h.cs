@@ -29,7 +29,7 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.WinAny
 {
-    public static unsafe class WinNT
+    internal static unsafe class WinNT
     {
 
         #region Helpers
