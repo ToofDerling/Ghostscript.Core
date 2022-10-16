@@ -33,7 +33,7 @@ namespace Ghostscript.NET
     /// <summary>
     /// Class that helps us to get various information about native libraries.
     /// </summary>
-    internal class NativeLibraryHelper
+    public class NativeLibraryHelper
     {
         /// <summary>
         /// Gets the image file machine type.
