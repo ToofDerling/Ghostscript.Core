@@ -33,7 +33,7 @@ namespace Ghostscript.NET
     /// <summary>
     /// Class that helps us to get various information about native libraries.
     /// </summary>
-    public class NativeLibraryHelper
+    internal class NativeLibraryHelper
     {
         /// <summary>
         /// Gets the image file machine type.
@@ -118,7 +118,7 @@ namespace Ghostscript.NET
         /// Gets if machine value represents 64 bit machine.
         /// </summary>
         /// <param name="machine">IMAGE_FILE_HEADER->Machine value.</param>
-        public static bool Is64BitMachineValue(ushort machine)
+        private static bool Is64BitMachineValue(ushort machine)
         {
             switch(machine)
             {

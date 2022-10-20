@@ -46,15 +46,6 @@ namespace Ghostscript.NET
 
         #endregion
 
-        public unsafe GhostscriptLibrary(byte* libraryPtr)
-        {
-            _library = new DynamicNativeLibrary(libraryPtr);
-
-            _loadedFromMemory = true;
-
-            Initialize();
-        }
-
         #region Constructor - buffer
 
         /// <summary>

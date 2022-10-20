@@ -48,13 +48,13 @@ namespace Microsoft.WinAny.Interop
 
         #region Private variables
 
-        private IntPtr _loadedModuleHandle;
-        private bool _loadedFromMemory;
-        private bool _disposed = false;
+        private IntPtr  _loadedModuleHandle;
+        private bool    _loadedFromMemory;
+        private bool    _disposed = false;
 
         private uint[,,] _protectionFlags = new uint[2, 2, 2]
                     {
-                        { /* not executable */ {WinNT.PAGE_NOACCESS, WinNT.PAGE_WRITECOPY}, {WinNT.PAGE_READONLY, WinNT.PAGE_READWRITE}, },
+                        { /* not executable */ {WinNT.PAGE_NOACCESS, WinNT.PAGE_WRITECOPY}, {WinNT.PAGE_READONLY, WinNT.PAGE_READWRITE}, }, 
                         { /* executable */ {WinNT.PAGE_EXECUTE, WinNT.PAGE_EXECUTE_WRITECOPY}, {WinNT.PAGE_EXECUTE_READ, WinNT.PAGE_EXECUTE_READWRITE}, },
                     };
 
@@ -79,18 +79,6 @@ namespace Microsoft.WinAny.Interop
         #endregion
 
         #region Constructor - buffer
-
-        public DynamicNativeLibrary(byte* ptr)
-        {
-            _loadedModuleHandle = PointerLoadLibrary(ptr);
-
-            if (_loadedModuleHandle == IntPtr.Zero)
-            {
-                throw new Exception("Module could not be loaded.");
-            }
-
-            _loadedFromMemory = true;
-        }
 
         /// <summary>
         /// Initializes a new instance of the NativeLibrary class from a native module byte array.
@@ -173,127 +161,117 @@ namespace Microsoft.WinAny.Interop
         {
             fixed (byte* ptr_data = data)
             {
-                return PointerLoadLibrary(ptr_data);
-            }
-        }
+                WinNT.IMAGE_DOS_HEADER* dos_header = (WinNT.IMAGE_DOS_HEADER*)ptr_data;
 
-        /// <summary>
-        /// Loads the specified native module from a pointer into the address space of the calling process.
-        /// </summary>
-        /// <param name="data">Native module byte array.</param>
-        /// <returns>If the function succeeds, the return value is a handle to the module.</returns>
-        private IntPtr PointerLoadLibrary(byte* ptr_data)
-        {
-            WinNT.IMAGE_DOS_HEADER* dos_header = (WinNT.IMAGE_DOS_HEADER*)ptr_data;
-
-            if (dos_header->e_magic != WinNT.IMAGE_DOS_SIGNATURE)
-            {
-                throw new NotSupportedException();
-            }
-
-            byte* ptr_old_header;
-            uint old_header_oh_sizeOfImage;
-            uint old_header_oh_sizeOfHeaders;
-            int image_nt_headers_Size;
-            IntPtr old_header_oh_imageBase;
-
-            if (Environment.Is64BitProcess)
-            {
-                WinNT.IMAGE_NT_HEADERS64* old_header = (WinNT.IMAGE_NT_HEADERS64*)(ptr_data + dos_header->e_lfanew);
-                if (old_header->Signature != WinNT.IMAGE_NT_SIGNATURE)
+                if (dos_header->e_magic != WinNT.IMAGE_DOS_SIGNATURE)
                 {
                     throw new NotSupportedException();
                 }
 
-                old_header_oh_sizeOfImage = old_header->OptionalHeader.SizeOfImage;
-                old_header_oh_sizeOfHeaders = old_header->OptionalHeader.SizeOfHeaders;
-                old_header_oh_imageBase = old_header->OptionalHeader.ImageBase;
-                ptr_old_header = (byte*)old_header;
+                byte* ptr_old_header;
+                uint old_header_oh_sizeOfImage;
+                uint old_header_oh_sizeOfHeaders;
+                int image_nt_headers_Size;
+                IntPtr old_header_oh_imageBase;
 
-                image_nt_headers_Size = sizeof(WinNT.IMAGE_NT_HEADERS64);
-            }
-            else
-            {
-                WinNT.IMAGE_NT_HEADERS32* old_header = (WinNT.IMAGE_NT_HEADERS32*)(ptr_data + dos_header->e_lfanew);
-                if (old_header->Signature != WinNT.IMAGE_NT_SIGNATURE)
+                if (Environment.Is64BitProcess)
                 {
-                    throw new NotSupportedException();
+                    WinNT.IMAGE_NT_HEADERS64* old_header = (WinNT.IMAGE_NT_HEADERS64*)(ptr_data + dos_header->e_lfanew);
+                    if (old_header->Signature != WinNT.IMAGE_NT_SIGNATURE)
+                    {
+                        throw new NotSupportedException();
+                    }
+
+                    old_header_oh_sizeOfImage = old_header->OptionalHeader.SizeOfImage;
+                    old_header_oh_sizeOfHeaders = old_header->OptionalHeader.SizeOfHeaders;
+                    old_header_oh_imageBase = old_header->OptionalHeader.ImageBase;
+                    ptr_old_header = (byte*)old_header;
+
+                    image_nt_headers_Size = sizeof(WinNT.IMAGE_NT_HEADERS64);
+                }
+                else
+                {
+                    WinNT.IMAGE_NT_HEADERS32* old_header = (WinNT.IMAGE_NT_HEADERS32*)(ptr_data + dos_header->e_lfanew);
+                    if (old_header->Signature != WinNT.IMAGE_NT_SIGNATURE)
+                    {
+                        throw new NotSupportedException();
+                    }
+
+                    old_header_oh_sizeOfImage = old_header->OptionalHeader.SizeOfImage;
+                    old_header_oh_sizeOfHeaders = old_header->OptionalHeader.SizeOfHeaders;
+                    old_header_oh_imageBase = old_header->OptionalHeader.ImageBase;
+                    ptr_old_header = (byte*)old_header;
+
+                    image_nt_headers_Size = sizeof(WinNT.IMAGE_NT_HEADERS32);
                 }
 
-                old_header_oh_sizeOfImage = old_header->OptionalHeader.SizeOfImage;
-                old_header_oh_sizeOfHeaders = old_header->OptionalHeader.SizeOfHeaders;
-                old_header_oh_imageBase = old_header->OptionalHeader.ImageBase;
-                ptr_old_header = (byte*)old_header;
+                IntPtr codeBase = IntPtr.Zero;
 
-                image_nt_headers_Size = sizeof(WinNT.IMAGE_NT_HEADERS32);
-            }
+                if (!Environment.Is64BitProcess)
+                {
+                    codeBase = WinBase.VirtualAlloc(old_header_oh_imageBase, old_header_oh_sizeOfImage, WinNT.MEM_RESERVE, WinNT.PAGE_READWRITE);
+                }
 
-            IntPtr codeBase = IntPtr.Zero;
+                if (codeBase == IntPtr.Zero)
+                    codeBase = WinBase.VirtualAlloc(IntPtr.Zero, old_header_oh_sizeOfImage, WinNT.MEM_RESERVE, WinNT.PAGE_READWRITE);
 
-            if (!Environment.Is64BitProcess)
-            {
-                codeBase = WinBase.VirtualAlloc(old_header_oh_imageBase, old_header_oh_sizeOfImage, WinNT.MEM_RESERVE, WinNT.PAGE_READWRITE);
-            }
+                if (codeBase == IntPtr.Zero)
+                    return IntPtr.Zero;
 
-            if (codeBase == IntPtr.Zero)
-                codeBase = WinBase.VirtualAlloc(IntPtr.Zero, old_header_oh_sizeOfImage, WinNT.MEM_RESERVE, WinNT.PAGE_READWRITE);
+                MEMORY_MODULE* memory_module = (MEMORY_MODULE*)Marshal.AllocHGlobal(sizeof(MEMORY_MODULE));
+                memory_module->codeBase = (byte*)codeBase;
+                memory_module->numModules = 0;
+                memory_module->modules = null;
+                memory_module->initialized = 0;
 
-            if (codeBase == IntPtr.Zero)
+                WinBase.VirtualAlloc(codeBase, old_header_oh_sizeOfImage, WinNT.MEM_COMMIT, WinNT.PAGE_READWRITE);
+
+                IntPtr headers = WinBase.VirtualAlloc(codeBase, old_header_oh_sizeOfHeaders, WinNT.MEM_COMMIT, WinNT.PAGE_READWRITE);
+
+
+                // copy PE header to code
+                memory.memcpy((byte*)headers, (byte*)dos_header, dos_header->e_lfanew + old_header_oh_sizeOfHeaders);
+               
+                memory_module->headers = &((byte*)(headers))[dos_header->e_lfanew];
+
+                if (Environment.Is64BitProcess)
+                {
+                    WinNT.IMAGE_NT_HEADERS64* mm_headers_64 = (WinNT.IMAGE_NT_HEADERS64*)(memory_module->headers);
+                    mm_headers_64->OptionalHeader.ImageBase = codeBase;
+                }
+                else
+                {
+                    WinNT.IMAGE_NT_HEADERS32* mm_headers_32 = (WinNT.IMAGE_NT_HEADERS32*)(memory_module->headers);
+                    mm_headers_32->OptionalHeader.ImageBase = codeBase;
+                }
+
+                this.CopySections(ptr_data, ptr_old_header, memory_module);
+
+                ulong locationDelta = (ulong)((ulong)codeBase - (ulong)old_header_oh_imageBase);
+
+                if (locationDelta != 0)
+                {
+                    this.PerformBaseRelocation(memory_module, locationDelta);
+                }
+
+                if (!this.BuildImportTable(memory_module))
+                {
+                    goto error;
+                }
+
+                this.FinalizeSections(memory_module);
+
+                if (!this.CallDllEntryPoint(memory_module, WinNT.DLL_PROCESS_ATTACH))
+                {
+                    goto error;
+                }
+
+                return (IntPtr)memory_module;
+
+            error:
+                MemoryFreeLibrary((IntPtr)memory_module);
                 return IntPtr.Zero;
-
-            MEMORY_MODULE* memory_module = (MEMORY_MODULE*)Marshal.AllocHGlobal(sizeof(MEMORY_MODULE));
-            memory_module->codeBase = (byte*)codeBase;
-            memory_module->numModules = 0;
-            memory_module->modules = null;
-            memory_module->initialized = 0;
-
-            WinBase.VirtualAlloc(codeBase, old_header_oh_sizeOfImage, WinNT.MEM_COMMIT, WinNT.PAGE_READWRITE);
-
-            IntPtr headers = WinBase.VirtualAlloc(codeBase, old_header_oh_sizeOfHeaders, WinNT.MEM_COMMIT, WinNT.PAGE_READWRITE);
-
-
-            // copy PE header to code
-            memory.memcpy((byte*)headers, (byte*)dos_header, dos_header->e_lfanew + old_header_oh_sizeOfHeaders);
-
-            memory_module->headers = &((byte*)(headers))[dos_header->e_lfanew];
-
-            if (Environment.Is64BitProcess)
-            {
-                WinNT.IMAGE_NT_HEADERS64* mm_headers_64 = (WinNT.IMAGE_NT_HEADERS64*)(memory_module->headers);
-                mm_headers_64->OptionalHeader.ImageBase = codeBase;
             }
-            else
-            {
-                WinNT.IMAGE_NT_HEADERS32* mm_headers_32 = (WinNT.IMAGE_NT_HEADERS32*)(memory_module->headers);
-                mm_headers_32->OptionalHeader.ImageBase = codeBase;
-            }
-
-            this.CopySections(ptr_data, ptr_old_header, memory_module);
-
-            ulong locationDelta = (ulong)((ulong)codeBase - (ulong)old_header_oh_imageBase);
-
-            if (locationDelta != 0)
-            {
-                this.PerformBaseRelocation(memory_module, locationDelta);
-            }
-
-            if (!this.BuildImportTable(memory_module))
-            {
-                goto error;
-            }
-
-            this.FinalizeSections(memory_module);
-
-            if (!this.CallDllEntryPoint(memory_module, WinNT.DLL_PROCESS_ATTACH))
-            {
-                goto error;
-            }
-
-            return (IntPtr)memory_module;
-
-        error:
-            MemoryFreeLibrary((IntPtr)memory_module);
-            return IntPtr.Zero;
         }
 
         #endregion
@@ -377,7 +355,7 @@ namespace Microsoft.WinAny.Interop
 
                 int index;
 
-                for (; relocation->VirtualAddress > 0;)
+                for (; relocation->VirtualAddress > 0; )
                 {
                     byte* dest = (byte*)(memory_module->codeBase + relocation->VirtualAddress);
                     ushort* relInfo = (ushort*)((byte*)relocation + sizeOfBaseRelocation);
@@ -758,7 +736,7 @@ namespace Microsoft.WinAny.Interop
             uint* nameRef;
             ushort* ordinal;
 
-
+            
             WinNT.IMAGE_DATA_DIRECTORY* directory = this.GET_HEADER_DIRECTORY(memory_module, WinNT.IMAGE_DIRECTORY_ENTRY_EXPORT);
 
             if (directory->Size == 0)
