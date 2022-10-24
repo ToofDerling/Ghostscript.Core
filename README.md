@@ -1,3 +1,9 @@
+This is a fork of Ghostscript.NET.
+
+The only changes are in the Ghostscript.NET project: A project file (Ghostscript.Core) that targets .Net 6 has been added. And a couple of memory routines has been updated with code from .Net, that may or may not be faster. 
+
+The original README:
+
 **Ghostscript.NET** - (written in C#) is the most completed managed wrapper library around the Ghostscript library (32-bit & 64-bit), an interpreter for the PostScript language, PDF, related software and documentation.
 
 [**NuGet: PM> Install-Package Ghostscript.NET**](http://nuget.org/packages/Ghostscript.NET/)
